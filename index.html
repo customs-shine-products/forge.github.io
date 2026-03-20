@@ -362,10 +362,12 @@ body {
 
 /* ── Editor Canvas ── */
 .escroll {
-  flex:1; overflow-y:auto; overflow-x:hidden;
-  padding:60px 52px; min-height:0;
-  position:relative;
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: 60px 52px; min-height: 0;
+  position: relative;
 }
+/* When empty state is showing, escroll is hidden — ecol is flex col so empty-state fills */
+.ecol { display: flex; flex-direction: column; flex: 1; overflow: hidden; min-width: 0; min-height: 0 }
 #editor {
   max-width:780px; margin:0 auto; min-height:calc(100% - 10px);
   font-family:'Crimson Pro',Georgia,serif;
@@ -389,15 +391,21 @@ body {
 @keyframes hlpulse { 0%,100%{filter:brightness(1)} 45%{filter:brightness(2.2)} }
 .hl.pulse { animation:hlpulse .5s ease }
 
-/* Empty state */
+/* Empty state — flex sibling, not absolute positioned */
 .empty-state {
-  position:absolute; inset:0;
-  display:none; flex-direction:column; align-items:center; justify-content:center;
-  padding:40px; text-align:center; pointer-events:none;
+  display: none;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+  min-height: 0;
+  overflow-y: auto;
 }
-.empty-state.on { display:flex; pointer-events:all }
+.empty-state.on { display: flex }
 .es-gem {
-  width:60px; height:60px; border-radius:16px;
+  width:60px; height:60px; border-radius:16px; flex-shrink:0;
   background:linear-gradient(135deg, var(--cyan) 0%, #0891b2 100%);
   display:flex; align-items:center; justify-content:center;
   box-shadow:0 0 30px var(--cyan-glow), 0 0 60px rgba(34,211,238,.1);
@@ -442,7 +450,7 @@ body {
 .sdot { width:6px; height:6px; border-radius:50%; background:var(--c-fact); flex-shrink:0; transition:background .3s }
 .sdot.busy { background:var(--cyan); animation:sdot 1s ease-in-out infinite }
 @keyframes sdot { 0%,100%{box-shadow:0 0 0 0 var(--cyan-glow)} 50%{box-shadow:0 0 0 5px transparent} }
-#smsg { color:var(--t3); transition:color .2s; font-size:12px }
+#smsg { color: var(--t2); transition: color .2s; font-size: 12px }
 .smdl { margin-left:auto; font-family:'Fira Code',monospace; font-size:10px; color:var(--t4) }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1372,19 +1380,20 @@ body {
         spellcheck="false"
         data-placeholder="Paste your writing here, or upload a .docx or .pdf — then use the tools below to forge it into something remarkable.">
       </div>
-      <!-- Empty state -->
-      <div class="empty-state" id="empty-state">
-        <div class="es-gem"><svg viewBox="0 0 24 24" fill="#07061a" width="28" height="28"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
-        <div class="es-title">FOR<span>GE</span></div>
-        <div class="es-sub">Craft writing that cuts through. Paste your content or upload a document to begin.</div>
-        <div class="es-grid">
-          <div class="es-feat"><div class="es-feat-top"><span class="es-feat-icon">✏️</span><span class="es-feat-name">Grammar & Style</span></div><div class="es-feat-desc">AI-powered deep analysis with smart suggestions</div></div>
-          <div class="es-feat"><div class="es-feat-top"><span class="es-feat-icon">🎨</span><span class="es-feat-name">Tone Rewriting</span></div><div class="es-feat-desc">Formal, casual, persuasive and more</div></div>
-          <div class="es-feat"><div class="es-feat-top"><span class="es-feat-icon">⚡</span><span class="es-feat-name">Quick Scan</span></div><div class="es-feat-desc">Instant local metrics — zero API calls</div></div>
-          <div class="es-feat"><div class="es-feat-top"><span class="es-feat-icon">✅</span><span class="es-feat-name">Fact-Check</span></div><div class="es-feat-desc">Verify claims with AI reasoning</div></div>
-        </div>
-        <div class="es-hint">Press <kbd>⌘V</kbd> / <kbd>Ctrl+V</kbd> to paste &nbsp;·&nbsp; or drag & drop a file</div>
+    </div>
+
+    <!-- Empty state — sibling of escroll, shown when editor is empty -->
+    <div class="empty-state" id="empty-state">
+      <div class="es-gem"><svg viewBox="0 0 24 24" fill="#07061a" width="28" height="28"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
+      <div class="es-title">FOR<span>GE</span></div>
+      <div class="es-sub">Craft writing that cuts through. Paste your content or upload a document to begin.</div>
+      <div class="es-grid">
+        <div class="es-feat"><div class="es-feat-top"><span class="es-feat-icon">✏️</span><span class="es-feat-name">Grammar & Style</span></div><div class="es-feat-desc">AI-powered deep analysis with smart suggestions</div></div>
+        <div class="es-feat"><div class="es-feat-top"><span class="es-feat-icon">🎨</span><span class="es-feat-name">Tone Rewriting</span></div><div class="es-feat-desc">Formal, casual, persuasive and more</div></div>
+        <div class="es-feat"><div class="es-feat-top"><span class="es-feat-icon">⚡</span><span class="es-feat-name">Quick Scan</span></div><div class="es-feat-desc">Instant local metrics — zero API calls</div></div>
+        <div class="es-feat"><div class="es-feat-top"><span class="es-feat-icon">✅</span><span class="es-feat-name">Fact-Check</span></div><div class="es-feat-desc">Verify claims with AI reasoning</div></div>
       </div>
+      <div class="es-hint">Press <kbd>⌘V</kbd> / <kbd>Ctrl+V</kbd> to paste &nbsp;·&nbsp; or drag & drop a file</div>
     </div>
 
     <!-- Status bar -->
@@ -1633,20 +1642,8 @@ function doRedo() {
   setStatus('Redone.');
 }
 
-/* ── DOM ── */
-const editor    = document.getElementById('editor');
-const sdot      = document.getElementById('sdot');
-const smsg      = document.getElementById('smsg');
-const smdl      = document.getElementById('smdl');
-const panel     = document.getElementById('panel');
-const pb        = document.getElementById('pb');
-const tt        = document.getElementById('tt');
-const hlPill    = document.getElementById('hl-pill');
-const applyAllB = document.getElementById('apply-all');
-const cachePill = document.getElementById('cache-pill');
-const sugNav    = document.getElementById('sug-nav');
-const navCt     = document.getElementById('nav-ct');
-const emptyEl   = document.getElementById('empty-state');
+/* ── DOM — resolved after DOMContentLoaded, not at parse time ── */
+let editor, sdot, smsg, smdl, panel, pb, tt, hlPill, applyAllB, cachePill, sugNav, navCt;
 
 const DESK_TOOLS = ['t-review','t-sum','t-gram','t-spell','t-vocab','t-tone','t-human','t-plag','t-fact','t-ai','t-read'];
 const MOB_TOOLS  = ['m-review','m-sum','m-gram','m-spell','m-vocab','m-tone','m-human','m-plag','m-fact','m-ai','m-read'];
@@ -1655,9 +1652,19 @@ const MOB_TOOLS  = ['m-review','m-sum','m-gram','m-spell','m-vocab','m-tone','m-
 const esc  = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const escA = s => String(s||'').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
-function getPlain() { const w=document.createTreeWalker(editor,NodeFilter.SHOW_TEXT); let t='',n; while((n=w.nextNode())) t+=n.textContent; return t; }
+function getPlain() {
+  if (!editor) return '';
+  const w = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+  let t = '', n;
+  while ((n = w.nextNode())) t += n.textContent;
+  return t;
+}
 
-function setStatus(msg,busy=false) { smsg.textContent=msg; sdot.classList.toggle('busy',busy); smdl.textContent=busy?apiModel:''; }
+function setStatus(msg, busy = false) {
+  if (smsg) smsg.textContent = msg;
+  if (sdot) sdot.classList.toggle('busy', busy);
+  if (smdl) smdl.textContent = busy ? apiModel : '';
+}
 
 function toast(msg,dur=1500) {
   const el=document.createElement('div'); el.className='toast'; el.textContent=msg;
@@ -1666,11 +1673,14 @@ function toast(msg,dur=1500) {
 
 /* ── Empty state ── */
 function syncEmpty() {
-  const has=!!getPlain().trim();
-  emptyEl.classList.toggle('on',!has);
-  const dis = !has||!apiKey;
-  DESK_TOOLS.forEach(id=>{const b=document.getElementById(id);if(b)b.disabled=dis;});
-  MOB_TOOLS.forEach(id=>{const b=document.getElementById(id);if(b)b.disabled=dis;});
+  const has = !!getPlain().trim();
+  const emEl = document.getElementById('empty-state');
+  const sc   = document.getElementById('escroll');
+  if (emEl) emEl.classList.toggle('on', !has);
+  if (sc)   sc.style.display = has ? '' : 'none';
+  const dis = !has || !apiKey;
+  DESK_TOOLS.forEach(id => { const b = document.getElementById(id); if (b) b.disabled = dis; });
+  MOB_TOOLS.forEach(id  => { const b = document.getElementById(id); if (b) b.disabled = dis; });
 }
 
 /* ── Local analytics ── */
@@ -1716,32 +1726,55 @@ function updateQS(t) {
 let statT;
 function updateStats() {
   clearTimeout(statT);
-  statT=setTimeout(()=>{
-    const t=getPlain(),w=t.trim()?t.trim().split(/\s+/).length:0;
-    const anim=(id,v)=>{const el=document.getElementById(id);if(!el)return;const p=parseInt(el.textContent.replace(/,/g,''))||0;if(p===v)return;el.classList.add('flash');const s=performance.now(),d=300;const tick=ts=>{const pr=Math.min(1,(ts-s)/d);el.textContent=Math.round(p+(v-p)*pr).toLocaleString();if(pr<1)requestAnimationFrame(tick);else setTimeout(()=>el.classList.remove('flash'),350);};requestAnimationFrame(tick);};
-    // sw is now inside wt-wrap
-    const swEl=document.getElementById('sw'); if(swEl){swEl.classList.add('flash');setTimeout(()=>swEl.classList.remove('flash'),400);swEl.textContent=w.toLocaleString();}
-    anim('sc',t.length); anim('ss',(t.match(/[.!?]+(?:\s|$)/g)||[]).length);
-    const m=w>0?Math.max(1,Math.round(w/200)):0;
-    document.getElementById('sr').textContent=m?`${m}m`:'—';
-    // mobile stats
-    const msw=document.getElementById('msw');if(msw)msw.textContent=w.toLocaleString();
-    const msr=document.getElementById('msr');if(msr)msr.textContent=m?`${m}m`:'—';
+  statT = setTimeout(() => {
+    const t = getPlain();
+    const w = t.trim() ? t.trim().split(/\s+/).length : 0;
 
-    // Word target progress
-    if(wordTarget>0){
-      const pct=Math.min(100,Math.round((w/wordTarget)*100));
-      const fill=document.getElementById('wt-fill');
-      if(fill){
-        fill.style.width=pct+'%';
-        fill.style.background=pct>=100?'var(--c-human)':pct>=75?'var(--c-plag)':'var(--cyan)';
+    // Generic animated counter helper
+    const anim = (id, v) => {
+      const el = document.getElementById(id); if (!el) return;
+      const prev = parseInt(el.textContent.replace(/,/g,'')) || 0;
+      if (prev === v) return;
+      el.classList.add('flash');
+      const start = performance.now(), dur = 300;
+      const tick = ts => {
+        const p = Math.min(1, (ts - start) / dur);
+        el.textContent = Math.round(prev + (v - prev) * p).toLocaleString();
+        if (p < 1) requestAnimationFrame(tick);
+        else setTimeout(() => el.classList.remove('flash'), 350);
+      };
+      requestAnimationFrame(tick);
+    };
+
+    // Word count — inside wt-wrap so use anim() directly
+    anim('sw', w);
+    anim('sc', t.length);
+    anim('ss', (t.match(/[.!?]+(?:\s|$)/g) || []).length);
+
+    const m = w > 0 ? Math.max(1, Math.round(w / 200)) : 0;
+    const srEl = document.getElementById('sr');
+    if (srEl) srEl.textContent = m ? `${m}m` : '—';
+
+    // Mobile stats
+    const msw = document.getElementById('msw'); if (msw) msw.textContent = w.toLocaleString();
+    const msr = document.getElementById('msr'); if (msr) msr.textContent = m ? `${m}m` : '—';
+
+    // Word target progress bar
+    if (wordTarget > 0) {
+      const pct = Math.min(100, Math.round((w / wordTarget) * 100));
+      const fill = document.getElementById('wt-fill');
+      if (fill) {
+        fill.style.width = pct + '%';
+        fill.style.background = pct >= 100 ? 'var(--c-human)' : pct >= 75 ? 'var(--c-plag)' : 'var(--cyan)';
       }
-      const lbl=document.getElementById('wt-lbl');
-      if(lbl) lbl.textContent=`${w}/${wordTarget}`;
+      const lbl = document.getElementById('wt-lbl');
+      if (lbl) lbl.textContent = `${w.toLocaleString()}/${wordTarget.toLocaleString()}`;
     }
 
-    syncEmpty(); updateRing(t); updateQS(t);
-  },110);
+    syncEmpty();
+    updateRing(t);
+    updateQS(t);
+  }, 110);
 }
 
 /* ── Cache ── */
@@ -2551,7 +2584,21 @@ function toggleQS(){
 }
 
 /* ── INIT ── */
-document.addEventListener('DOMContentLoaded',()=>{
+document.addEventListener('DOMContentLoaded', () => {
+  // Resolve all DOM references here — guaranteed to exist
+  editor    = document.getElementById('editor');
+  sdot      = document.getElementById('sdot');
+  smsg      = document.getElementById('smsg');
+  smdl      = document.getElementById('smdl');
+  panel     = document.getElementById('panel');
+  pb        = document.getElementById('pb');
+  tt        = document.getElementById('tt');
+  hlPill    = document.getElementById('hl-pill');
+  applyAllB = document.getElementById('apply-all');
+  cachePill = document.getElementById('cache-pill');
+  sugNav    = document.getElementById('sug-nav');
+  navCt     = document.getElementById('nav-ct');
+
   loadKey(); syncEmpty();
 
   /* Files */
