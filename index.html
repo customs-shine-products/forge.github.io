@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.5.1/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 /* ═══════════════════════════════════════════════════════════
    FORGE v6 — DEEP SPACE GLASS
@@ -940,6 +941,205 @@ body {
   .mdt-lbl { display:none }
   .mdt { min-width:44px }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   DOCK LABEL OVERFLOW FIX
+═══════════════════════════════════════════════════════════ */
+.dt-lbl {
+  font-size: 8.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--t3);
+  line-height: 1; transition: color .18s;
+  text-align: center; white-space: nowrap;
+  max-width: 52px; overflow: hidden; text-overflow: ellipsis;
+}
+/* Allow slightly wider tools in the analysis group where labels are longer */
+.dt.dt-wide { width: 58px }
+
+/* ═══════════════════════════════════════════════════════════
+   HEADER STAT BOOST — more contrast, clearer hierarchy
+═══════════════════════════════════════════════════════════ */
+.stat-v {
+  font-family: 'Fira Code', monospace;
+  font-size: 15px; font-weight: 600; color: #ffffff;
+  line-height: 1; transition: color .2s;
+  min-width: 28px; text-align: center; letter-spacing: -.01em;
+}
+.stat-k {
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .1em; color: #8880b8; line-height: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   WORD TARGET
+═══════════════════════════════════════════════════════════ */
+.wt-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 2px; cursor: pointer; position: relative;
+}
+.wt-stat-v {
+  font-family: 'Fira Code', monospace;
+  font-size: 15px; font-weight: 600; color: #ffffff; line-height: 1;
+  transition: color .2s; min-width: 28px; text-align: center;
+  letter-spacing: -.01em;
+}
+.wt-stat-v.flash { color: var(--cyan) }
+.wt-bar-row { display: flex; align-items: center; gap: 4px }
+.wt-bar {
+  width: 40px; height: 3px; background: rgba(255,255,255,.1);
+  border-radius: 2px; overflow: hidden;
+}
+.wt-fill {
+  height: 100%; border-radius: 2px;
+  background: var(--cyan);
+  transition: width .5s ease, background .3s;
+  width: 0%;
+}
+.wt-stat-k {
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .1em; color: #8880b8; line-height: 1;
+}
+/* Word target popover */
+.wt-pop {
+  position: absolute; top: calc(100% + 10px); left: 50%;
+  transform: translateX(-50%);
+  background: rgba(12,9,40,.98); border: 1px solid var(--b2);
+  border-radius: 10px; padding: 12px 14px; width: 200px;
+  box-shadow: var(--sh-lg); z-index: 200; display: none;
+}
+.wt-pop.show { display: block }
+.wt-pop-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .1em; color: var(--t3); margin-bottom: 7px;
+}
+.wt-pop-input {
+  width: 100%; height: 34px; padding: 0 10px;
+  background: var(--glass-2); border: 1px solid var(--b2);
+  border-radius: 7px; color: var(--t1);
+  font-family: 'Fira Code', monospace; font-size: 13px;
+  outline: none; transition: border-color .15s;
+}
+.wt-pop-input:focus { border-color: var(--cyan) }
+.wt-pop-btns { display: flex; gap: 6px; margin-top: 8px }
+.wt-pop-set {
+  flex: 1; height: 28px; background: var(--cyan); color: #07061a;
+  border: none; border-radius: 6px; font-family: 'Sora', sans-serif;
+  font-size: 11.5px; font-weight: 700; cursor: pointer;
+}
+.wt-pop-clr {
+  height: 28px; padding: 0 8px;
+  background: transparent; border: 1px solid var(--b2);
+  color: var(--t3); border-radius: 6px;
+  font-family: 'Sora', sans-serif; font-size: 11.5px; cursor: pointer;
+  transition: all .15s;
+}
+.wt-pop-clr:hover { background: var(--glass-2); color: var(--t2) }
+
+/* ═══════════════════════════════════════════════════════════
+   FIND & REPLACE MODAL
+═══════════════════════════════════════════════════════════ */
+.fr-modal {
+  position: fixed; inset: 0; z-index: 300;
+  display: none; align-items: flex-start; justify-content: center;
+  padding-top: 90px; pointer-events: none;
+}
+.fr-modal.show { display: flex; pointer-events: all }
+.fr-box {
+  background: linear-gradient(135deg, rgba(16,12,50,.98) 0%, rgba(10,8,35,.99) 100%);
+  border: 1px solid var(--b2); border-radius: 14px;
+  padding: 20px 22px; width: 420px;
+  box-shadow: var(--sh-lg), 0 0 40px rgba(34,211,238,.06);
+  animation: kmi .22s cubic-bezier(.4,0,.2,1);
+  pointer-events: all;
+}
+.fr-title {
+  font-size: 14px; font-weight: 700; color: var(--t1);
+  margin-bottom: 14px; display: flex; align-items: center;
+  justify-content: space-between;
+}
+.fr-close {
+  width: 24px; height: 24px; border-radius: 5px;
+  border: none; background: transparent; color: var(--t3);
+  cursor: pointer; font-size: 16px; display: flex;
+  align-items: center; justify-content: center; transition: all .15s;
+}
+.fr-close:hover { background: var(--glass-2); color: var(--t1) }
+.fr-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center }
+.fr-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .1em; color: var(--t3); width: 52px; flex-shrink: 0;
+}
+.fr-input {
+  flex: 1; height: 34px; padding: 0 10px;
+  background: var(--glass-2); border: 1px solid var(--b1);
+  border-radius: 7px; color: var(--t1);
+  font-family: 'Fira Code', monospace; font-size: 12.5px;
+  outline: none; transition: border-color .15s;
+}
+.fr-input:focus { border-color: var(--cyan) }
+.fr-input::placeholder { color: var(--t4) }
+.fr-opts { display: flex; gap: 10px; margin-bottom: 14px; padding-left: 60px }
+.fr-opt {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; color: var(--t3); cursor: pointer;
+  user-select: none;
+}
+.fr-opt input { accent-color: var(--cyan) }
+.fr-btns { display: flex; gap: 6px; flex-wrap: wrap }
+.fr-btn {
+  height: 30px; padding: 0 12px;
+  border-radius: 7px; border: 1px solid var(--b2);
+  background: var(--glass-1); color: var(--t2);
+  font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all .15s; white-space: nowrap;
+}
+.fr-btn:hover { background: var(--glass-2); color: var(--t1) }
+.fr-btn.primary { background: var(--cyan); color: #07061a; border-color: transparent }
+.fr-btn.primary:hover { filter: brightness(1.1) }
+.fr-status {
+  margin-top: 10px; font-size: 11.5px; color: var(--t3);
+  font-family: 'Fira Code', monospace; min-height: 16px;
+}
+/* Find match highlight (not the same as grammar highlights) */
+.fr-match { background: rgba(34,211,238,.25); border-radius: 2px }
+.fr-match.fr-current { background: rgba(34,211,238,.5); outline: 2px solid var(--cyan) }
+
+/* ═══════════════════════════════════════════════════════════
+   DIFF VIEW
+═══════════════════════════════════════════════════════════ */
+.diff-wrap { font-size: 13px; line-height: 1.85; color: var(--t2) }
+.diff-wrap p { margin-bottom: 10px }
+.diff-ins {
+  background: rgba(74,222,128,.15); color: var(--c-human);
+  border-radius: 2px; padding: 0 2px;
+}
+.diff-del {
+  background: rgba(248,113,113,.13); color: var(--hl-sp-bd);
+  text-decoration: line-through; border-radius: 2px; padding: 0 2px;
+}
+.diff-legend {
+  display: flex; gap: 14px; margin-bottom: 12px;
+  padding: 8px 12px; background: var(--glass-1);
+  border: 1px solid var(--b0); border-radius: 7px;
+}
+.diff-legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--t3) }
+.diff-legend-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0 }
+
+/* ═══════════════════════════════════════════════════════════
+   EXPORT BUTTON
+═══════════════════════════════════════════════════════════ */
+.hbtn.export-btn {
+  background: var(--glass-2); border-color: var(--b2);
+  color: var(--t1);
+}
+.hbtn.export-btn:hover {
+  background: rgba(34,211,238,.12); border-color: var(--cyan-mid);
+  color: var(--cyan);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   VOCAB COMPLEXITY BAR ADDITIONS
+═══════════════════════════════════════════════════════════ */
+.qs-div { width:1px; height:18px; background:var(--b0); margin:0 6px; flex-shrink:0 }
 </style>
 </head>
 <body>
@@ -974,6 +1174,36 @@ body {
 
 <!-- Toast container -->
 <div id="toasts"></div>
+
+<!-- Find & Replace modal -->
+<div class="fr-modal" id="fr-modal">
+  <div class="fr-box">
+    <div class="fr-title">
+      Find &amp; Replace
+      <button class="fr-close" id="fr-close">✕</button>
+    </div>
+    <div class="fr-row">
+      <span class="fr-label">Find</span>
+      <input type="text" id="fr-find" class="fr-input" placeholder="Search text…">
+    </div>
+    <div class="fr-row">
+      <span class="fr-label">Replace</span>
+      <input type="text" id="fr-replace" class="fr-input" placeholder="Replace with…">
+    </div>
+    <div class="fr-opts">
+      <label class="fr-opt"><input type="checkbox" id="fr-case"> Case sensitive</label>
+      <label class="fr-opt"><input type="checkbox" id="fr-whole"> Whole word</label>
+      <label class="fr-opt"><input type="checkbox" id="fr-regex"> Regex</label>
+    </div>
+    <div class="fr-btns">
+      <button class="fr-btn" id="fr-prev-btn">‹ Prev</button>
+      <button class="fr-btn" id="fr-next-btn">Next ›</button>
+      <button class="fr-btn" id="fr-replace-btn">Replace</button>
+      <button class="fr-btn primary" id="fr-all-btn">Replace All</button>
+    </div>
+    <div class="fr-status" id="fr-status"></div>
+  </div>
+</div>
 
 <!-- Tooltip -->
 <div id="tt">
@@ -1014,7 +1244,23 @@ body {
   <div class="hsep"></div>
 
   <div class="stats">
-    <div class="stat"><span class="stat-v" id="sw">0</span><span class="stat-k">Words</span></div>
+    <!-- Word target wraps the word count stat -->
+    <div class="wt-wrap" id="wt-wrap" title="Click to set word count goal">
+      <span class="wt-stat-v" id="sw">0</span>
+      <div class="wt-bar-row">
+        <div class="wt-bar"><div class="wt-fill" id="wt-fill"></div></div>
+        <span class="wt-stat-k" id="wt-lbl">Words</span>
+      </div>
+      <!-- Popover -->
+      <div class="wt-pop" id="wt-pop">
+        <div class="wt-pop-label">Word Count Goal</div>
+        <input type="number" id="wt-input" class="wt-pop-input" placeholder="e.g. 1500" min="1">
+        <div class="wt-pop-btns">
+          <button class="wt-pop-set" id="wt-set">Set Goal</button>
+          <button class="wt-pop-clr" id="wt-clr">Clear</button>
+        </div>
+      </div>
+    </div>
     <div class="stat"><span class="stat-v" id="sc">0</span><span class="stat-k">Chars</span></div>
     <div class="stat"><span class="stat-v" id="ss">0</span><span class="stat-k">Sentences</span></div>
     <div class="stat"><span class="stat-v" id="sr">—</span><span class="stat-k">Read time</span></div>
@@ -1049,7 +1295,15 @@ body {
       Upload
       <input type="file" id="fin" accept=".pdf,.docx" style="display:none">
     </label>
-    <button class="hbtn" id="hbtn-copy" id="hbtn-copy">
+    <button class="hbtn" id="btn-find" title="Find & Replace (Ctrl+H)">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M16 11H6M11 6v10" stroke-width="2"/></svg>
+      Find
+    </button>
+    <button class="hbtn export-btn" id="btn-export" title="Export as .docx">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export .docx
+    </button>
+    <button class="hbtn" id="hbtn-copy">
       <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
       Copy
     </button>
@@ -1102,6 +1356,10 @@ body {
         <div class="qsm"><span class="qsm-val" id="qs-adv">—</span><div class="qsm-row"><div class="qsm-dot" id="qs-adv-dot"></div><span class="qsm-lbl">Adverbs</span></div></div>
         <div class="qs-div"></div>
         <div class="qsm"><span class="qsm-val" id="qs-slen">—</span><div class="qsm-row"><div class="qsm-dot" id="qs-slen-dot"></div><span class="qsm-lbl">Sent Len</span></div></div>
+        <div class="qs-div"></div>
+        <div class="qsm"><span class="qsm-val" id="qs-ttr">—</span><div class="qsm-row"><div class="qsm-dot" id="qs-ttr-dot"></div><span class="qsm-lbl">Vocab TTR</span></div></div>
+        <div class="qs-div"></div>
+        <div class="qsm"><span class="qsm-val" id="qs-longw">—</span><div class="qsm-row"><div class="qsm-dot" id="qs-longw-dot"></div><span class="qsm-lbl">Long Words</span></div></div>
         <div class="qs-div"></div>
         <div class="qsm"><span class="qsm-val" id="qs-words">—</span><div class="qsm-row"><div class="qsm-dot" style="background:var(--cyan)"></div><span class="qsm-lbl">Words</span></div></div>
       </div>
@@ -1211,19 +1469,19 @@ body {
     <div class="dg">
       <span class="dg-label">Analysis</span>
       <div class="dg-row">
-        <button class="dt" id="t-plag" data-c="plag" disabled>
+        <button class="dt dt-wide" id="t-plag" data-c="plag" disabled>
           <div class="dt-iw"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><circle cx="10" cy="15" r="2"/><line x1="12" y1="17" x2="14" y2="19"/></svg></div>
-          <span class="dt-lbl">Plagiarism</span>
+          <span class="dt-lbl">Plag.</span>
           <span class="dt-tip">Plagiarism <kbd>⌘8</kbd></span>
         </button>
-        <button class="dt" id="t-fact" data-c="fact" disabled>
+        <button class="dt dt-wide" id="t-fact" data-c="fact" disabled>
           <div class="dt-iw"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
-          <span class="dt-lbl">Fact-Check</span>
+          <span class="dt-lbl">Fact</span>
           <span class="dt-tip">Fact-Check <kbd>⌘9</kbd></span>
         </button>
-        <button class="dt" id="t-ai" data-c="ai" disabled>
+        <button class="dt dt-wide" id="t-ai" data-c="ai" disabled>
           <div class="dt-iw"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 11V7"/><rect x="8" y="5" width="8" height="4" rx="1"/><circle cx="8.5" cy="15.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1" fill="currentColor" stroke="none"/></svg></div>
-          <span class="dt-lbl">AI Detect</span>
+          <span class="dt-lbl">AI</span>
           <span class="dt-tip">AI Detection <kbd>⌘0</kbd></span>
         </button>
       </div>
@@ -1313,6 +1571,12 @@ let qsOn     = false;
 const cache   = new Map();
 const pHistory = [];
 const isMob = () => window.innerWidth < 768;
+
+/* ── Word target ── */
+let wordTarget = 0;
+
+/* ── Diff — store pre-transform text ── */
+let diffOriginal = '';
 
 /* ── Undo / Redo history stack ── */
 const undoStack = [];   // [{text, selStart, selEnd}]
@@ -1428,13 +1692,25 @@ function updateRing(t) {
 function updateQS(t) {
   if(!qsOn)return;
   const f=flesch(t),p=passR(t),a=advR(t),s=avgSL(t),w=t.trim()?t.trim().split(/\s+/).length:0;
+
+  // Vocab complexity: Type-Token Ratio + % long words
+  const words = t.toLowerCase().replace(/[^a-z\s]/g,' ').trim().split(/\s+/).filter(Boolean);
+  const ttr = words.length > 0 ? Math.round((new Set(words).size / words.length) * 100) : 0;
+  const longW = words.length > 0 ? Math.round((words.filter(w=>w.length>6).length / words.length)*100) : 0;
+
   const set=(id,val)=>{ const el=document.getElementById(id); if(el){el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),400);el.textContent=val;} };
   set('qs-ease',f!==null?f:'—'); set('qs-pass',p+'%'); set('qs-adv',a+'%'); set('qs-slen',s||'—'); set('qs-words',w.toLocaleString());
+  set('qs-ttr', ttr+'%'); set('qs-longw', longW+'%');
+
   const dot=(id,cls)=>{const el=document.getElementById(id);if(el)el.className='qsm-dot '+cls;};
   dot('qs-ease-dot',f===null?'':(f>=65?'good':f>=45?'warn':'bad'));
   dot('qs-pass-dot',p<=10?'good':p<=20?'warn':'bad');
   dot('qs-adv-dot', a<=3?'good':a<=6?'warn':'bad');
   dot('qs-slen-dot',s<=20?'good':s<=28?'warn':'bad');
+  // TTR: >65% = rich vocab (good), 45-65% = moderate, <45% = repetitive
+  dot('qs-ttr-dot', ttr>=65?'good':ttr>=45?'warn':'bad');
+  // Long words: 20-40% = sophisticated (good), <20% = simple, >40% = possibly overcomplex
+  dot('qs-longw-dot', (longW>=20&&longW<=40)?'good':(longW>10?'warn':'bad'));
 }
 
 let statT;
@@ -1443,12 +1719,27 @@ function updateStats() {
   statT=setTimeout(()=>{
     const t=getPlain(),w=t.trim()?t.trim().split(/\s+/).length:0;
     const anim=(id,v)=>{const el=document.getElementById(id);if(!el)return;const p=parseInt(el.textContent.replace(/,/g,''))||0;if(p===v)return;el.classList.add('flash');const s=performance.now(),d=300;const tick=ts=>{const pr=Math.min(1,(ts-s)/d);el.textContent=Math.round(p+(v-p)*pr).toLocaleString();if(pr<1)requestAnimationFrame(tick);else setTimeout(()=>el.classList.remove('flash'),350);};requestAnimationFrame(tick);};
-    anim('sw',w); anim('sc',t.length); anim('ss',(t.match(/[.!?]+(?:\s|$)/g)||[]).length);
+    // sw is now inside wt-wrap
+    const swEl=document.getElementById('sw'); if(swEl){swEl.classList.add('flash');setTimeout(()=>swEl.classList.remove('flash'),400);swEl.textContent=w.toLocaleString();}
+    anim('sc',t.length); anim('ss',(t.match(/[.!?]+(?:\s|$)/g)||[]).length);
     const m=w>0?Math.max(1,Math.round(w/200)):0;
     document.getElementById('sr').textContent=m?`${m}m`:'—';
     // mobile stats
     const msw=document.getElementById('msw');if(msw)msw.textContent=w.toLocaleString();
     const msr=document.getElementById('msr');if(msr)msr.textContent=m?`${m}m`:'—';
+
+    // Word target progress
+    if(wordTarget>0){
+      const pct=Math.min(100,Math.round((w/wordTarget)*100));
+      const fill=document.getElementById('wt-fill');
+      if(fill){
+        fill.style.width=pct+'%';
+        fill.style.background=pct>=100?'var(--c-human)':pct>=75?'var(--c-plag)':'var(--cyan)';
+      }
+      const lbl=document.getElementById('wt-lbl');
+      if(lbl) lbl.textContent=`${w}/${wordTarget}`;
+    }
+
     syncEmpty(); updateRing(t); updateQS(t);
   },110);
 }
@@ -1614,6 +1905,350 @@ function dismissTT(){if(!activeHl)return;activeHl.replaceWith(document.createTex
 
 function showCache(){cachePill.classList.add('on');setTimeout(()=>cachePill.classList.remove('on'),2400);}
 
+/* ══════════════════════════════════════════════════════════
+   DIFF ENGINE — word-level Myers diff
+══════════════════════════════════════════════════════════ */
+function wordDiff(oldText, newText) {
+  // Tokenise preserving whitespace as separate tokens
+  const tok = s => s.split(/(\s+)/);
+  const A = tok(oldText.slice(0, 6000));
+  const B = tok(newText.slice(0, 6000));
+  const m = A.length, n = B.length;
+  // LCS DP (capped at reasonable size)
+  if (m * n > 400000) return null; // too big, skip diff
+  const dp = Array.from({length: m+1}, () => new Uint32Array(n+1));
+  for (let i=1;i<=m;i++) for (let j=1;j<=n;j++) {
+    dp[i][j] = A[i-1]===B[j-1] ? dp[i-1][j-1]+1 : Math.max(dp[i-1][j],dp[i][j-1]);
+  }
+  const ops=[]; let i=m,j=n;
+  while(i>0||j>0){
+    if(i>0&&j>0&&A[i-1]===B[j-1]){ops.unshift({t:'eq',v:A[i-1]});i--;j--;}
+    else if(j>0&&(i===0||dp[i][j-1]>=dp[i-1][j])){ops.unshift({t:'ins',v:B[j-1]});j--;}
+    else{ops.unshift({t:'del',v:A[i-1]});i--;}
+  }
+  return ops;
+}
+
+function renderDiff(ops) {
+  if (!ops) return '<div class="pc"><p>Document too large for inline diff. Your text has been updated.</p></div>';
+  let html = '<div class="diff-legend"><div class="diff-legend-item"><div class="diff-legend-swatch" style="background:rgba(74,222,128,.25)"></div>Added</div><div class="diff-legend-item"><div class="diff-legend-swatch" style="background:rgba(248,113,113,.2)"></div>Removed</div></div><div class="diff-wrap">';
+  for (const op of ops) {
+    const v = esc(op.v);
+    if (op.t === 'eq')  html += v;
+    else if (op.t === 'ins') html += `<span class="diff-ins">${v}</span>`;
+    else html += `<span class="diff-del">${v}</span>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+/* ══════════════════════════════════════════════════════════
+   FIND & REPLACE
+══════════════════════════════════════════════════════════ */
+let frMatches = [];
+let frIdx = 0;
+
+function buildFRRegex() {
+  const raw = document.getElementById('fr-find').value;
+  if (!raw) return null;
+  const isRegex = document.getElementById('fr-regex').checked;
+  const isCase  = document.getElementById('fr-case').checked;
+  const isWhole = document.getElementById('fr-whole').checked;
+  try {
+    let pattern = isRegex ? raw : raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (isWhole) pattern = `\\b${pattern}\\b`;
+    return new RegExp(pattern, isCase ? 'g' : 'gi');
+  } catch { return null; }
+}
+
+function frHighlightAll() {
+  // Remove previous fr highlights
+  editor.querySelectorAll('.fr-match').forEach(el => el.replaceWith(document.createTextNode(el.textContent)));
+  editor.normalize();
+  frMatches = [];
+  const re = buildFRRegex();
+  if (!re) { document.getElementById('fr-status').textContent = ''; return; }
+
+  const text = getPlain();
+  const spans = [];
+  let match;
+  re.lastIndex = 0;
+  while ((match = re.exec(text)) !== null) {
+    spans.push({ index: match.index, length: match[0].length, text: match[0] });
+    if (spans.length > 500) break;
+  }
+  if (!spans.length) { document.getElementById('fr-status').textContent = 'No matches.'; return; }
+
+  // Rebuild editor HTML with match spans
+  let html = '', last = 0;
+  spans.forEach((s, i) => {
+    html += esc(text.slice(last, s.index));
+    html += `<span class="fr-match${i===frIdx?' fr-current':''}" data-fri="${i}">${esc(s.text)}</span>`;
+    last = s.index + s.length;
+  });
+  html += esc(text.slice(last));
+  editor.innerHTML = html;
+  frMatches = spans;
+  document.getElementById('fr-status').textContent = `${spans.length} match${spans.length!==1?'es':''}`;
+  scrollToFRMatch();
+}
+
+function scrollToFRMatch() {
+  const cur = editor.querySelector('.fr-current');
+  if (cur) cur.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function frNav(dir) {
+  if (!frMatches.length) return;
+  frIdx = (frIdx + dir + frMatches.length) % frMatches.length;
+  editor.querySelectorAll('.fr-match').forEach((el,i) => el.classList.toggle('fr-current', i===frIdx));
+  document.getElementById('fr-status').textContent = `${frIdx+1} of ${frMatches.length}`;
+  scrollToFRMatch();
+}
+
+function frReplace() {
+  if (!frMatches.length) return;
+  const rep = document.getElementById('fr-replace').value;
+  const cur = editor.querySelector('.fr-current');
+  if (cur) { cur.replaceWith(document.createTextNode(rep)); editor.normalize(); frHighlightAll(); updateStats(); pushHistory(); }
+}
+
+function frReplaceAll() {
+  const rep = document.getElementById('fr-replace').value;
+  const re = buildFRRegex();
+  if (!re) return;
+  const text = getPlain();
+  const newText = text.replace(re, rep);
+  const count = (text.match(re)||[]).length;
+  clearHl(true);
+  editor.textContent = newText;
+  editor.querySelectorAll('.fr-match').forEach(el => el.replaceWith(document.createTextNode(el.textContent)));
+  editor.normalize();
+  frMatches = [];
+  updateStats(); pushHistory();
+  document.getElementById('fr-status').textContent = `Replaced ${count} match${count!==1?'es':''}`;
+  toast(`✓ Replaced ${count} match${count!==1?'es':''}`);
+}
+
+function openFR() { document.getElementById('fr-modal').classList.add('show'); document.getElementById('fr-find').focus(); }
+function closeFR() {
+  document.getElementById('fr-modal').classList.remove('show');
+  // Remove fr highlights
+  editor.querySelectorAll('.fr-match').forEach(el => el.replaceWith(document.createTextNode(el.textContent)));
+  editor.normalize(); frMatches = [];
+}
+
+/* ══════════════════════════════════════════════════════════
+   WORD TARGET
+══════════════════════════════════════════════════════════ */
+function openWT() {
+  const pop = document.getElementById('wt-pop');
+  pop.classList.toggle('show');
+  if (pop.classList.contains('show')) document.getElementById('wt-input').focus();
+}
+function setWT() {
+  const v = parseInt(document.getElementById('wt-input').value);
+  if (v > 0) {
+    wordTarget = v;
+    document.getElementById('wt-pop').classList.remove('show');
+    document.getElementById('wt-fill').style.display = 'block';
+    toast(`✓ Goal set: ${v.toLocaleString()} words`);
+    updateStats();
+  }
+}
+function clearWT() {
+  wordTarget = 0;
+  document.getElementById('wt-input').value = '';
+  document.getElementById('wt-pop').classList.remove('show');
+  document.getElementById('wt-fill').style.width = '0%';
+  document.getElementById('wt-lbl').textContent = 'Words';
+  toast('Word goal cleared');
+}
+
+/* ══════════════════════════════════════════════════════════
+   DOCX EXPORT — Open XML, Open Sans, 14pt headings, 12pt body
+══════════════════════════════════════════════════════════ */
+function xmlEsc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function isHeadingLine(line) {
+  const t = line.trim();
+  if (!t || t.length > 90) return false;
+  // Must start with uppercase or number, not end with typical sentence punctuation
+  // And be relatively short (title-like)
+  return /^[A-Z0-9"]/.test(t) &&
+         !/[.!?,;]$/.test(t) &&
+         t.split(/\s+/).length <= 12 &&
+         t.length >= 3;
+}
+
+function parseInlineRuns(text) {
+  // Returns [{text, bold, italic}] — handles *italic*, **bold**, _italic_
+  const runs = [];
+  const re = /(\*\*([^*]+?)\*\*|\*([^*]+?)\*|_([^_]+?)_)/g;
+  let last = 0, m;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) runs.push({ text: text.slice(last, m.index), bold: false, italic: false });
+    if (m[2]) runs.push({ text: m[2], bold: true,  italic: false });
+    else if (m[3]) runs.push({ text: m[3], bold: false, italic: true  });
+    else if (m[4]) runs.push({ text: m[4], bold: false, italic: true  });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) runs.push({ text: text.slice(last), bold: false, italic: false });
+  return runs.filter(r => r.text);
+}
+
+function makeRun(text, bold, italic, ptHalf) {
+  // ptHalf: font size in half-points (24 = 12pt, 28 = 14pt)
+  const bTag = bold   ? '<w:b/><w:bCs/>' : '';
+  const iTag = italic ? '<w:i/><w:iCs/>' : '';
+  return `<w:r><w:rPr><w:rFonts w:ascii="Open Sans" w:hAnsi="Open Sans" w:cs="Open Sans"/>${bTag}${iTag}<w:sz w:val="${ptHalf}"/><w:szCs w:val="${ptHalf}"/><w:color w:val="000000"/></w:rPr><w:t xml:space="preserve">${xmlEsc(text)}</w:t></w:r>`;
+}
+
+function buildDocXml(text) {
+  const paragraphs = text.split(/\n\n+/).filter(p => p.trim());
+  let body = '';
+
+  for (const para of paragraphs) {
+    const lines = para.split(/\n/).filter(l => l.trim());
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      const isHeading = isHeadingLine(trimmed);
+      const ptHalf = isHeading ? 28 : 24; // 14pt or 12pt
+      const spacing = isHeading
+        ? '<w:spacing w:before="280" w:after="120" w:line="300" w:lineRule="auto"/>'
+        : '<w:spacing w:after="160" w:line="276" w:lineRule="auto"/>';
+      const jc = '<w:jc w:val="both"/>';
+      const indent = '<w:ind w:left="0" w:right="0"/>';
+
+      const runs = parseInlineRuns(trimmed);
+      const runXml = runs.map(r => makeRun(r.text, r.bold || isHeading, r.italic, ptHalf)).join('');
+
+      body += `<w:p><w:pPr>${spacing}${jc}${indent}<w:pStyle w:val="${isHeading?'Heading1':'Normal'}"/></w:pPr>${runXml}</w:p>`;
+    }
+  }
+
+  // Add final empty paragraph
+  body += `<w:p><w:pPr><w:spacing w:after="0"/></w:pPr><w:r><w:t></w:t></w:r></w:p>`;
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:cx="http://schemas.microsoft.com/office/drawing/2014/chartex" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:w10="urn:schemas-microsoft-com:office:word" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml" xmlns:w16cex="http://schemas.microsoft.com/office/word/2018/wordml/cex" xmlns:w16cid="http://schemas.microsoft.com/office/word/2016/wordml/cid" xmlns:w16="http://schemas.microsoft.com/office/word/2018/wordml" xmlns:w16sdtdh="http://schemas.microsoft.com/office/word/2020/wordml/sdtdatahash" xmlns:w16se="http://schemas.microsoft.com/office/word/2015/wordml/symex" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:wpi="http://schemas.microsoft.com/office/word/2010/wordprocessingInk" xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" mc:Ignorable="w14 w15 w16se w16cid w16 w16cex w16sdtdh wp14"><w:body>${body}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+}
+
+function buildStylesXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="w14">
+  <w:docDefaults>
+    <w:rPrDefault><w:rPr>
+      <w:rFonts w:ascii="Open Sans" w:hAnsi="Open Sans" w:cs="Open Sans" w:eastAsia="Open Sans"/>
+      <w:sz w:val="24"/><w:szCs w:val="24"/>
+      <w:color w:val="000000"/>
+      <w:lang w:val="en-US"/>
+    </w:rPr></w:rPrDefault>
+    <w:pPrDefault><w:pPr>
+      <w:spacing w:after="160" w:line="276" w:lineRule="auto"/>
+      <w:jc w:val="both"/>
+    </w:pPr></w:pPrDefault>
+  </w:docDefaults>
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+    <w:qFormat/>
+    <w:pPr><w:spacing w:after="160" w:line="276" w:lineRule="auto"/><w:jc w:val="both"/></w:pPr>
+    <w:rPr>
+      <w:rFonts w:ascii="Open Sans" w:hAnsi="Open Sans" w:cs="Open Sans"/>
+      <w:sz w:val="24"/><w:szCs w:val="24"/>
+      <w:color w:val="000000"/>
+    </w:rPr>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="Heading1">
+    <w:name w:val="heading 1"/>
+    <w:basedOn w:val="Normal"/>
+    <w:next w:val="Normal"/>
+    <w:qFormat/>
+    <w:pPr><w:spacing w:before="280" w:after="120" w:line="300" w:lineRule="auto"/><w:jc w:val="left"/></w:pPr>
+    <w:rPr>
+      <w:rFonts w:ascii="Open Sans" w:hAnsi="Open Sans" w:cs="Open Sans"/>
+      <w:b/><w:bCs/>
+      <w:sz w:val="28"/><w:szCs w:val="28"/>
+      <w:color w:val="000000"/>
+    </w:rPr>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="Heading2">
+    <w:name w:val="heading 2"/>
+    <w:basedOn w:val="Normal"/>
+    <w:next w:val="Normal"/>
+    <w:qFormat/>
+    <w:pPr><w:spacing w:before="200" w:after="80" w:line="276" w:lineRule="auto"/><w:jc w:val="left"/></w:pPr>
+    <w:rPr>
+      <w:rFonts w:ascii="Open Sans" w:hAnsi="Open Sans" w:cs="Open Sans"/>
+      <w:b/><w:bCs/>
+      <w:sz w:val="26"/><w:szCs w:val="26"/>
+      <w:color w:val="222244"/>
+    </w:rPr>
+  </w:style>
+</w:styles>`;
+}
+
+async function exportDocx() {
+  const text = getPlain().trim();
+  if (!text) { setStatus('Nothing to export.'); toast('Editor is empty'); return; }
+  if (typeof JSZip === 'undefined') { toast('JSZip not loaded — check connection'); return; }
+
+  setStatus('Generating .docx…', true);
+  try {
+    const zip = new JSZip();
+
+    // [Content_Types].xml
+    zip.file('[Content_Types].xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/><Override PartName="/word/fontTable.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.fontTable+xml"/></Types>`);
+
+    // _rels/.rels
+    zip.folder('_rels').file('.rels',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
+
+    const word = zip.folder('word');
+
+    // word/document.xml
+    word.file('document.xml', buildDocXml(text));
+
+    // word/styles.xml
+    word.file('styles.xml', buildStylesXml());
+
+    // word/settings.xml
+    word.file('settings.xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:defaultTabStop w:val="720"/><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`);
+
+    // word/fontTable.xml — register Open Sans
+    word.file('fontTable.xml',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:fonts xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:font w:name="Open Sans"><w:panose1 w:val="020B0602030504020204"/><w:charset w:val="00"/><w:family w:val="swiss"/><w:pitch w:val="variable"/></w:font><w:font w:name="Calibri"><w:panose1 w:val="020F0502020204030204"/><w:charset w:val="00"/><w:family w:val="swiss"/><w:pitch w:val="variable"/></w:font></w:fonts>`);
+
+    // word/_rels/document.xml.rels
+    word.folder('_rels').file('document.xml.rels',
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable" Target="fontTable.xml"/></Relationships>`);
+
+    const blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+
+    // Trigger download
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    const ts  = new Date().toISOString().slice(0,10);
+    a.href = url; a.download = `forge-document-${ts}.docx`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+    setStatus('Export complete.');
+    toast('✓ Downloaded as .docx');
+  } catch(e) {
+    setStatus('Export failed: ' + e.message);
+    toast('Export error: ' + e.message);
+    console.error(e);
+  }
+}
+
 /* ══════════════════════════════════
    TOOLS
 ══════════════════════════════════ */
@@ -1726,23 +2361,44 @@ function showTones(){
 }
 window.doTone=async function(tone){
   const text=getPlain().trim();if(!text)return;
+  diffOriginal = text; // save for diff
   btnLoad('t-tone','m-tone',true);streamPanel('Rewriting…','🎨','var(--c-tone)');setStatus(`Rewriting in ${tone} tone…`,true);
-  try{const r=await callGemini(text.slice(0,13000),`Rewrite in a ${tone} tone. Preserve all factual content. Return ONLY the rewritten text.`);clearHl(true);editor.textContent=r;updateStats();cache.clear();
-  undoStack.push(r);syncUndoButtons();
-  successPanel('Tone Updated','🎨','🎨',`${tone} Tone Applied`,'Document rewritten successfully.','var(--c-tone)');setStatus(`Done.`);toast(`✓ ${tone} tone`);}
-  catch(e){openPanel('Error','!',`<div class="pc"><p style="color:var(--c-review)">${esc(e.message)}</p></div>`,'var(--c-tone)');setStatus('Error: '+e.message);}
+  try{
+    const r=await callGemini(text.slice(0,13000),`Rewrite in a ${tone} tone. Preserve all factual content. Return ONLY the rewritten text.`);
+    clearHl(true);editor.textContent=r;updateStats();cache.clear();
+    undoStack.push(r);syncUndoButtons();
+    // Show diff
+    const ops = wordDiff(diffOriginal, r);
+    openPanel('Tone Updated','🎨', renderDiff(ops), 'var(--c-tone)');
+    setStatus(`Done.`);toast(`✓ ${tone} tone — diff shown in panel`);
+  }catch(e){openPanel('Error','!',`<div class="pc"><p style="color:var(--c-review)">${esc(e.message)}</p></div>`,'var(--c-tone)');setStatus('Error: '+e.message);}
   finally{btnLoad('t-tone','m-tone',false);}
 };
 
 async function doHumanize(){
   const text=getPlain().trim();if(!text)return;
+  diffOriginal = text; // save for diff
   btnLoad('t-human','m-human',true);streamPanel('Humanizing…','🧬','var(--c-human)');setStatus('Humanizing…',true);
   const sys=`Rewrite to sound like a skilled human writer — not AI. Mix short and long sentences, natural connective phrases, concrete details, contractions, occasional rhetorical questions. Return ONLY the rewritten text.`;
-  try{const r=await callGemini(text.slice(0,13000),sys);clearHl(true);editor.textContent=r;updateStats();cache.clear();
-  undoStack.push(r);syncUndoButtons();
-  successPanel('Humanized','🧬','🧬','Text Humanized','Your document now reads like a skilled human wrote it.','var(--c-human)');setStatus('Humanized.');toast('✓ Humanized');}
-  catch(e){openPanel('Error','!',`<div class="pc"><p style="color:var(--c-review)">${esc(e.message)}</p></div>`,'var(--c-human)');setStatus('Error: '+e.message);}
+  try{
+    const r=await callGemini(text.slice(0,13000),sys);clearHl(true);editor.textContent=r;updateStats();cache.clear();
+    undoStack.push(r);syncUndoButtons();
+    // Show diff in panel
+    const ops = wordDiff(diffOriginal, r);
+    const diffHtml = renderDiff(ops);
+    openPanel('Humanized','🧬',`
+      <div style="margin-bottom:10px;display:flex;gap:8px">
+        <button class="fr-btn primary" onclick="this.closest('.pb,.mob-panel-body').querySelector('.diff-wrap,.pc').style.display='none';document.getElementById('diff-toggle-orig').style.display='flex'">Show original</button>
+      </div>
+      ${diffHtml}
+      <div id="diff-toggle-orig" style="display:none">
+        <div class="diff-wrap" style="color:var(--t2);font-size:13px;line-height:1.85">${esc(diffOriginal)}</div>
+      </div>
+    `,'var(--c-human)');
+    setStatus('Humanized.');toast('✓ Humanized — diff shown in panel');
+  }catch(e){openPanel('Error','!',`<div class="pc"><p style="color:var(--c-review)">${esc(e.message)}</p></div>`,'var(--c-human)');setStatus('Error: '+e.message);}
   finally{btnLoad('t-human','m-human',false);}
+}
 }
 
 async function doSummarize(){
@@ -1870,6 +2526,8 @@ document.addEventListener('keydown',e=>{
   // Undo/Redo — intercept before browser handles it
   if(mod&&e.key==='z'&&!e.shiftKey){e.preventDefault();doUndo();return;}
   if(mod&&(e.key==='y'||(e.key==='z'&&e.shiftKey))){e.preventDefault();doRedo();return;}
+  // Find & Replace
+  if(mod&&e.key==='h'){e.preventDefault();openFR();return;}
 
   if(mod&&!e.shiftKey){
     const map={'1':doReview,'2':doSummarize,'3':()=>doCheck(false),'4':()=>doCheck(true),'5':doVocab,'6':showTones,'7':doHumanize,'8':doPlagiarism,'9':doFact,'0':doAI};
@@ -1928,6 +2586,29 @@ document.addEventListener('DOMContentLoaded',()=>{
   /* Header */
   document.getElementById('hbtn-copy').addEventListener('click',()=>{navigator.clipboard.writeText(getPlain()).then(()=>toast('✓ Copied'));});
   document.getElementById('btn-key').addEventListener('click',()=>{if(apiKey)removeKey();else document.getElementById('kmodal').classList.add('on');});
+  document.getElementById('btn-find').addEventListener('click', openFR);
+  document.getElementById('btn-export').addEventListener('click', exportDocx);
+
+  /* Find & Replace */
+  document.getElementById('fr-close').addEventListener('click', closeFR);
+  document.getElementById('fr-find').addEventListener('input', ()=>{ frIdx=0; frHighlightAll(); });
+  document.getElementById('fr-next-btn').addEventListener('click', ()=>frNav(1));
+  document.getElementById('fr-prev-btn').addEventListener('click', ()=>frNav(-1));
+  document.getElementById('fr-replace-btn').addEventListener('click', frReplace);
+  document.getElementById('fr-all-btn').addEventListener('click', frReplaceAll);
+  document.getElementById('fr-find').addEventListener('keydown', e=>{ if(e.key==='Enter'){e.preventDefault();frNav(e.shiftKey?-1:1);} });
+  document.getElementById('fr-replace').addEventListener('keydown', e=>{ if(e.key==='Enter'){e.preventDefault();frReplace();} });
+  // Close FR modal on outside click
+  document.getElementById('fr-modal').addEventListener('click', e=>{ if(e.target.id==='fr-modal') closeFR(); });
+
+  /* Word target */
+  document.getElementById('wt-wrap').addEventListener('click', e=>{ if(!e.target.closest('.wt-pop')) openWT(); });
+  document.getElementById('wt-set').addEventListener('click', e=>{ e.stopPropagation(); setWT(); });
+  document.getElementById('wt-clr').addEventListener('click', e=>{ e.stopPropagation(); clearWT(); });
+  document.getElementById('wt-input').addEventListener('keydown', e=>{ e.stopPropagation(); if(e.key==='Enter') setWT(); });
+  document.getElementById('wt-input').addEventListener('click', e=>e.stopPropagation());
+  // Close word target popover on outside click
+  document.addEventListener('click', e=>{ if(!e.target.closest('.wt-wrap')) document.getElementById('wt-pop').classList.remove('show'); });
 
   /* Key modal */
   document.getElementById('ksave').addEventListener('click',saveKey);
