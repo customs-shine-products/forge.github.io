@@ -153,8 +153,10 @@ body {
 /* Logo */
 .logo {
   display: flex; align-items: center; gap: 9px;
-  flex-shrink: 0; cursor: default; text-decoration: none;
+  flex-shrink: 0; cursor: pointer; text-decoration: none;
+  transition: opacity .2s;
 }
+.logo:hover { opacity: .82 }
 .logo-gem {
   width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
   background: linear-gradient(135deg, var(--cyan) 0%, #0891b2 100%);
@@ -184,16 +186,17 @@ body {
 .hsep { width:1px; height:18px; background:var(--b1); flex-shrink:0 }
 
 /* Stats */
-.stats { display:flex; gap:16px; align-items:center }
-.stat { display:flex; flex-direction:column; align-items:center; gap:1px; cursor:default }
+.stats { display:flex; gap:18px; align-items:center }
+.stat { display:flex; flex-direction:column; align-items:center; gap:2px; cursor:default }
 .stat-v {
-  font-family:'Fira Code',monospace; font-size:13px; font-weight:500;
-  color:var(--t1); line-height:1; transition:color .2s; min-width:26px; text-align:center;
+  font-family:'Fira Code',monospace; font-size:15px; font-weight:600;
+  color:var(--t1); line-height:1; transition:color .2s; min-width:28px; text-align:center;
+  letter-spacing:-.01em;
 }
 .stat-v.flash { color:var(--cyan) }
 .stat-k {
-  font-size:8px; font-weight:700; text-transform:uppercase;
-  letter-spacing:.12em; color:var(--t4); line-height:1;
+  font-size:9.5px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.1em; color:var(--t3); line-height:1;
 }
 
 /* Readability ring */
@@ -213,8 +216,8 @@ body {
   font-family:'Fira Code',monospace; font-size:7.5px; font-weight:500; color:var(--t3);
 }
 .rr-info { display:flex; flex-direction:column; gap:1px }
-.rr-score { font-family:'Fira Code',monospace; font-size:12.5px; font-weight:500; color:var(--t1) }
-.rr-lbl { font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--t4) }
+.rr-score { font-family:'Fira Code',monospace; font-size:13px; font-weight:600; color:var(--t1) }
+.rr-lbl { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--t3) }
 
 /* Quick scan toggle */
 .qs-btn {
@@ -277,11 +280,13 @@ body {
 }
 .eb {
   height:22px; padding:0 8px; border-radius:5px; border:none;
-  background:transparent; color:var(--t4);
+  background:transparent; color:var(--t3);
   font-family:'Sora',sans-serif; font-size:11.5px; font-weight:500;
   cursor:pointer; transition:all .12s;
 }
 .eb:hover { background:var(--glass-2); color:var(--t1) }
+.eb:disabled { opacity:.28; cursor:not-allowed }
+.eb.undo-btn, .eb.redo-btn { min-width:52px }
 .esep { width:1px; height:11px; background:var(--b0); margin:0 3px }
 
 /* HL legend */
@@ -611,8 +616,8 @@ body {
 }
 .dg { display:flex; flex-direction:column; align-items:center; padding:6px 8px 7px }
 .dg-label {
-  font-size:7.5px; font-weight:700; text-transform:uppercase;
-  letter-spacing:.13em; color:var(--t4); line-height:1; margin-bottom:5px; white-space:nowrap;
+  font-size:8px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.13em; color:var(--t3); line-height:1; margin-bottom:5px; white-space:nowrap;
 }
 .dg-row { display:flex; align-items:flex-end; gap:1px }
 .dsep { width:1px; background:var(--b0); align-self:stretch; flex-shrink:0 }
@@ -998,7 +1003,7 @@ body {
 
 <!-- ═══ HEADER ═══ -->
 <header class="hdr">
-  <div class="logo">
+  <div class="logo" onclick="window.location.reload()" title="New document — reload FORGE">
     <div class="logo-gem">
       <svg viewBox="0 0 24 24" fill="#07061a" width="17" height="17"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
     </div>
@@ -1062,8 +1067,8 @@ body {
   <div class="ecol">
     <!-- Editor toolbar -->
     <div class="ebar">
-      <button class="eb" onclick="document.execCommand('undo')">↩ Undo</button>
-      <button class="eb" onclick="document.execCommand('redo')">↪ Redo</button>
+      <button class="eb undo-btn" id="btn-undo" disabled>↩ Undo</button>
+      <button class="eb redo-btn" id="btn-redo" disabled>↪ Redo</button>
       <div class="esep"></div>
       <button class="eb" id="btn-sa">Select All</button>
       <div class="esep"></div>
@@ -1308,6 +1313,61 @@ let qsOn     = false;
 const cache   = new Map();
 const pHistory = [];
 const isMob = () => window.innerWidth < 768;
+
+/* ── Undo / Redo history stack ── */
+const undoStack = [];   // [{text, selStart, selEnd}]
+const redoStack = [];
+const MAX_HISTORY = 100;
+let historyPaused = false;  // pause during programmatic changes
+let historyTimer;
+
+function pushHistory() {
+  if (historyPaused) return;
+  clearTimeout(historyTimer);
+  historyTimer = setTimeout(() => {
+    const text = getPlain();
+    // Don't push if same as top of stack
+    if (undoStack.length && undoStack[undoStack.length-1] === text) return;
+    undoStack.push(text);
+    if (undoStack.length > MAX_HISTORY) undoStack.shift();
+    redoStack.length = 0;  // clear redo on new change
+    syncUndoButtons();
+  }, 350); // debounce 350ms
+}
+
+function syncUndoButtons() {
+  const bu = document.getElementById('btn-undo');
+  const br = document.getElementById('btn-redo');
+  if (bu) bu.disabled = undoStack.length <= 1;
+  if (br) br.disabled = redoStack.length === 0;
+}
+
+function doUndo() {
+  if (undoStack.length <= 1) return;
+  const current = undoStack.pop();
+  redoStack.push(current);
+  const prev = undoStack[undoStack.length - 1] ?? '';
+  historyPaused = true;
+  editor.textContent = prev;
+  historyPaused = false;
+  clearHl(true);
+  updateStats();
+  syncUndoButtons();
+  setStatus('Undone.');
+}
+
+function doRedo() {
+  if (!redoStack.length) return;
+  const next = redoStack.pop();
+  undoStack.push(next);
+  historyPaused = true;
+  editor.textContent = next;
+  historyPaused = false;
+  clearHl(true);
+  updateStats();
+  syncUndoButtons();
+  setStatus('Redone.');
+}
 
 /* ── DOM ── */
 const editor    = document.getElementById('editor');
@@ -1580,11 +1640,53 @@ async function doCheck(spellOnly=false){
   const dId=spellOnly?'t-spell':'t-gram';const mId=spellOnly?'m-spell':'m-gram';
   if(cache.has(ck)){const it=cache.get(ck);applyHighlights(it);buildCheckPanel(title,badge,accent,it);showCache();return setStatus(`${it.length} issues (cached).`);}
   btnLoad(dId,mId,true);loadPanel(title,badge,`Checking ${spellOnly?'spelling':'grammar'}…`,accent);setStatus('Scanning…',true);
-  const sys=spellOnly?`Spell-check only. Valid JSON array, no markdown: [{"original":"exact verbatim word","suggestion":"corrected","type":"highlight-spell","explanation":"brief"}]. Return [] if none.`:`Grammar and style. Valid JSON array, no markdown, max 22: [{"original":"exact verbatim phrase","suggestion":"corrected","type":"highlight-spell" or "highlight-grammar","explanation":"brief"}]. Return [] if none.`;
+
+  const sys = spellOnly
+    ? `You are a precise spell-checker. Scan the text for misspelled words ONLY.
+
+STRICT RULES — violating these makes your output useless:
+1. "original" MUST be copied CHARACTER-FOR-CHARACTER from the text, exactly as it appears. Do NOT paraphrase or alter it.
+2. "suggestion" must ONLY fix the misspelling. Change ONLY the misspelled word itself — no other words.
+3. Never suggest rewording, restructuring, or removing words.
+4. If unsure whether something is a misspelling, skip it.
+
+Return a valid JSON array. Each item: {"original":"exact word verbatim","suggestion":"correctly spelled word","type":"highlight-spell","explanation":"what was wrong and why"}
+Return [] if no misspellings found.
+Do NOT wrap in markdown code fences.`
+    : `You are a careful grammar and style editor. Scan the text for errors ONLY.
+
+STRICT RULES — violating these makes your output harmful:
+1. "original" MUST be copied CHARACTER-FOR-CHARACTER from the text. Copy the EXACT substring including surrounding words for context. Do NOT shorten, paraphrase, or rephrase it in any way.
+2. "suggestion" must fix ONLY the specific grammatical error. Change the MINIMUM number of words. NEVER remove words that weren't errors. NEVER restructure the sentence. NEVER shorten the sentence.
+3. For spelling errors use type "highlight-spell". For grammar/style errors use type "highlight-grammar".
+4. Do NOT flag: passive voice, stylistic choices, word repetition, or sentences that are long but grammatically correct.
+5. Only flag: subject-verb disagreement, wrong tense, missing/wrong articles, punctuation errors, and clear grammatical mistakes.
+6. Maximum 20 items. If you cannot find the EXACT verbatim phrase in the text, skip that item.
+
+Return a valid JSON array. Each item: {"original":"exact verbatim phrase from text","suggestion":"corrected version with minimum changes","type":"highlight-spell or highlight-grammar","explanation":"specific error and fix"}
+Return [] if no errors.
+Do NOT wrap in markdown code fences.`;
+
   try{
-    const raw=await callGemini(`Text:\n\n${text.slice(0,12000)}`,sys,{generationConfig:{responseMimeType:'application/json'}});
-    const items=safeJson(raw);cache.set(ck,items);
-    if(!items.length){successPanel(title,'✓','✅','Looks Clean!',`No ${spellOnly?'spelling':'grammar'} issues.`,accent);return setStatus('No issues found.');}
+    const raw=await callGemini(`Analyze this text for ${spellOnly?'spelling errors':'grammar and spelling errors'} only. Do not suggest stylistic rewrites.\n\nText:\n\n${text.slice(0,12000)}`,sys,{generationConfig:{responseMimeType:'application/json',temperature:0}});
+    let items=safeJson(raw);
+
+    // Client-side validation: reject any suggestion where "original" doesn't appear verbatim in text
+    // and reject any where suggestion is drastically shorter than original (paraphrase detected)
+    items = items.filter(item => {
+      if (!item?.original || typeof item.original !== 'string') return false;
+      if (!item?.suggestion || typeof item.suggestion !== 'string') return false;
+      // Must appear literally in the text
+      if (!text.includes(item.original)) return false;
+      // Suggestion shouldn't be >40% shorter than original (catches rewrites)
+      if (item.suggestion.length < item.original.length * 0.55) return false;
+      // Original shouldn't be >80 chars (catches when AI grabs entire sentences)
+      if (item.original.length > 100) return false;
+      return true;
+    });
+
+    cache.set(ck,items);
+    if(!items.length){successPanel(title,'✓','✅','Looks Clean!',`No ${spellOnly?'spelling':'grammar'} issues found.`,accent);return setStatus('No issues found.');}
     const matched=applyHighlights(items);buildCheckPanel(title,badge,accent,matched);
     setStatus(`${matched.length} issue${matched.length!==1?'s':''} found.`);toast(`${matched.length} suggestion${matched.length!==1?'s':''}`);
   }catch(e){openPanel(title,badge,`<div class="pc"><p style="color:var(--c-review)">${esc(e.message)}</p></div>`,accent);setStatus('Error: '+e.message);}
@@ -1625,7 +1727,9 @@ function showTones(){
 window.doTone=async function(tone){
   const text=getPlain().trim();if(!text)return;
   btnLoad('t-tone','m-tone',true);streamPanel('Rewriting…','🎨','var(--c-tone)');setStatus(`Rewriting in ${tone} tone…`,true);
-  try{const r=await callGemini(text.slice(0,13000),`Rewrite in a ${tone} tone. Preserve all factual content. Return ONLY the rewritten text.`);clearHl(true);editor.textContent=r;updateStats();cache.clear();successPanel('Tone Updated','🎨','🎨',`${tone} Tone Applied`,'Document rewritten successfully.','var(--c-tone)');setStatus(`Done.`);toast(`✓ ${tone} tone`);}
+  try{const r=await callGemini(text.slice(0,13000),`Rewrite in a ${tone} tone. Preserve all factual content. Return ONLY the rewritten text.`);clearHl(true);editor.textContent=r;updateStats();cache.clear();
+  undoStack.push(r);syncUndoButtons();
+  successPanel('Tone Updated','🎨','🎨',`${tone} Tone Applied`,'Document rewritten successfully.','var(--c-tone)');setStatus(`Done.`);toast(`✓ ${tone} tone`);}
   catch(e){openPanel('Error','!',`<div class="pc"><p style="color:var(--c-review)">${esc(e.message)}</p></div>`,'var(--c-tone)');setStatus('Error: '+e.message);}
   finally{btnLoad('t-tone','m-tone',false);}
 };
@@ -1634,7 +1738,9 @@ async function doHumanize(){
   const text=getPlain().trim();if(!text)return;
   btnLoad('t-human','m-human',true);streamPanel('Humanizing…','🧬','var(--c-human)');setStatus('Humanizing…',true);
   const sys=`Rewrite to sound like a skilled human writer — not AI. Mix short and long sentences, natural connective phrases, concrete details, contractions, occasional rhetorical questions. Return ONLY the rewritten text.`;
-  try{const r=await callGemini(text.slice(0,13000),sys);clearHl(true);editor.textContent=r;updateStats();cache.clear();successPanel('Humanized','🧬','🧬','Text Humanized','Your document now reads like a skilled human wrote it.','var(--c-human)');setStatus('Humanized.');toast('✓ Humanized');}
+  try{const r=await callGemini(text.slice(0,13000),sys);clearHl(true);editor.textContent=r;updateStats();cache.clear();
+  undoStack.push(r);syncUndoButtons();
+  successPanel('Humanized','🧬','🧬','Text Humanized','Your document now reads like a skilled human wrote it.','var(--c-human)');setStatus('Humanized.');toast('✓ Humanized');}
   catch(e){openPanel('Error','!',`<div class="pc"><p style="color:var(--c-review)">${esc(e.message)}</p></div>`,'var(--c-human)');setStatus('Error: '+e.message);}
   finally{btnLoad('t-human','m-human',false);}
 }
@@ -1728,7 +1834,10 @@ async function handleFile(file){
     if(name.endsWith('.pdf')){if(typeof pdfjsLib==='undefined')throw new Error('PDF library not loaded — refresh.');const buf=await file.arrayBuffer();const pdf=await pdfjsLib.getDocument({data:buf}).promise;for(let i=1;i<=pdf.numPages;i++){const pg=await pdf.getPage(i);const tc=await pg.getTextContent();text+=tc.items.map(s=>s.str).join(' ')+'\n\n';setP(5+Math.round((i/pdf.numPages)*88));}}
     else{if(typeof mammoth==='undefined')throw new Error('DOCX library not loaded — refresh.');setP(40);const buf=await file.arrayBuffer();const res=await mammoth.extractRawText({arrayBuffer:buf});text=res.value;setP(92);}
     if(!text.trim())throw new Error('File appears empty or could not be read.');
-    clearHl(true);editor.textContent=text.trim();updateStats();cache.clear();setP(100);setTimeout(()=>{fp.classList.remove('on');setP(0);},600);
+    clearHl(true);editor.textContent=text.trim();updateStats();cache.clear();
+    // Push loaded text into history
+    undoStack.push(text.trim()); syncUndoButtons();
+    setP(100);setTimeout(()=>{fp.classList.remove('on');setP(0);},600);
     setStatus(`✓ Loaded: ${file.name}`);toast(`✓ ${file.name}`);
   }catch(err){fp.classList.remove('on');setP(0);setStatus(`Error: ${err.message}`);toast('Error loading file');}
 }
@@ -1757,6 +1866,11 @@ function removeKey(){if(!confirm('Remove saved API key?'))return;localStorage.re
 /* ── Keyboard shortcuts ── */
 document.addEventListener('keydown',e=>{
   const mod=e.metaKey||e.ctrlKey;
+
+  // Undo/Redo — intercept before browser handles it
+  if(mod&&e.key==='z'&&!e.shiftKey){e.preventDefault();doUndo();return;}
+  if(mod&&(e.key==='y'||(e.key==='z'&&e.shiftKey))){e.preventDefault();doRedo();return;}
+
   if(mod&&!e.shiftKey){
     const map={'1':doReview,'2':doSummarize,'3':()=>doCheck(false),'4':()=>doCheck(true),'5':doVocab,'6':showTones,'7':doHumanize,'8':doPlagiarism,'9':doFact,'0':doAI};
     if(map[e.key]&&getPlain().trim()&&apiKey){e.preventDefault();map[e.key]();}
@@ -1794,7 +1908,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.addEventListener('drop',e=>{e.preventDefault();dc=0;dro.classList.remove('on');handleFile(e.dataTransfer?.files[0]);});
 
   /* Editor */
-  editor.addEventListener('input',updateStats);
+  editor.addEventListener('input', e => { updateStats(); pushHistory(); });
   editor.addEventListener('paste',e=>{e.preventDefault();document.execCommand('insertText',false,(e.clipboardData||window.clipboardData).getData('text/plain'));});
   editor.addEventListener('click',e=>{const h=e.target.closest('.hl');if(h){const i=parseInt(h.dataset.i||'0');hlIdx=i;updateNavCt();showTT(h);e.stopPropagation();}else hideTT();});
   document.addEventListener('click',e=>{if(!tt.contains(e.target)&&!e.target.closest('.hl'))hideTT();});
@@ -1821,6 +1935,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('kinp').addEventListener('keydown',e=>{if(e.key==='Enter')saveKey();});
 
   /* Editor bar */
+  document.getElementById('btn-undo').addEventListener('click', doUndo);
+  document.getElementById('btn-redo').addEventListener('click', doRedo);
   document.getElementById('btn-sa').addEventListener('click',()=>{const r=document.createRange();r.selectNodeContents(editor);const s=window.getSelection();s.removeAllRanges();s.addRange(r);});
   document.getElementById('eclr').addEventListener('click',clearHl);
   document.getElementById('apply-all').addEventListener('click',applyAllHl);
@@ -1864,6 +1980,9 @@ document.addEventListener('DOMContentLoaded',()=>{
   if('speechSynthesis' in window){speechSynthesis.getVoices();speechSynthesis.addEventListener('voiceschanged',()=>speechSynthesis.getVoices());}
 
   updateStats();
+  // Seed the undo stack so first undo has somewhere to go
+  undoStack.push('');
+  syncUndoButtons();
   if(!apiKey)setTimeout(()=>document.getElementById('kmodal').classList.add('on'),700);
 });
 </script>
